@@ -2,4 +2,11 @@
 *.img
 *.bin
 *.lst
-*.sys
+*.gas
+*.obj
+
+bootpack.nas
+bootpack.map
+bootpack.bim
+bootpack.hrb
+haribote.sys
