@@ -1,5 +1,5 @@
-# helloos.img は nasで生成する
-helloos.img
+# .img は nasで生成する
+*.img
 
 # ipl.bin ipl.lst は asmコマンドで生成する
 ipl.bin
