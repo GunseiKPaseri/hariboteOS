@@ -1,6 +1,5 @@
-# .img は nasで生成する
+# 自動生成できるようになったため、以下は不要
 *.img
-
-# ipl.bin ipl.lst は asmコマンドで生成する
-ipl.bin
-ipl.lst
+*.bin
+*.lst
+*.sys
