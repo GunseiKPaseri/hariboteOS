@@ -13,7 +13,7 @@ void HariMain(void)
 	io_sti(); /* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */
 
 	init_palette();
-	init_screen(binfo->vram, binfo->scrnx, binfo->scrny);
+	init_screen8(binfo->vram, binfo->scrnx, binfo->scrny);
 	
 	/* 画面中央になるように座標計算 */
 	mx = (binfo->scrnx - 16) /2;
