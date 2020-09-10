@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 /* 他のファイルで作った関数がありますとCコンパイラに教える */
 
 void io_hlt(void);
@@ -50,7 +52,11 @@ void HariMain(void)
 
 	init_palette();
 	init_screen(binfo->vram, binfo->scrnx, binfo->scrny);
-	putfonts8_asc(binfo->vram, binfo->scrnx,   8,  8, COL8_FFFFFF, "ABC 123");
+	
+	char s[128];
+	sprintf(s, "scrnx = %d", binfo->scrnx);
+	
+	putfonts8_asc(binfo->vram, binfo->scrnx,   8,  8, COL8_FFFFFF, s);
 	putfonts8_asc(binfo->vram, binfo->scrnx,  31, 31, COL8_000000, "Haribote OS.");
 	putfonts8_asc(binfo->vram, binfo->scrnx,  30, 30, COL8_FFFFFF, "Haribote OS.");
 
