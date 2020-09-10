@@ -4,6 +4,10 @@
 *.lst
 *.gas
 *.obj
+*.nas
+! asmhead.nas
+! naskfunc.nas
+! ipl10.nas
 
 bootpack.nas
 bootpack.map
