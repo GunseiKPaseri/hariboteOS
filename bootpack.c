@@ -38,9 +38,16 @@ void HariMain(void)
 {
 	char *vram;
 	int xsize, ysize;
+	short *binfo_scrnx, *binfo_scrny;
+	int *binfo_vram;
 
 	init_palette();
-	vram = (char *) 0xa0000;
+	binfo_scrnx = (short *) 0x0ff4;
+	binfo_scrny = (short *) 0x0ff6;
+	binfo_vram = (int *) 0x0ff8;
+	xsize = *binfo_scrnx;
+	ysize = *binfo_scrny;
+	vram = (char *) *binfo_vram;
 	xsize = 320;
 	ysize = 200;
 
