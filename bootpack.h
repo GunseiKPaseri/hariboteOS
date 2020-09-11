@@ -85,8 +85,8 @@ void set_gatedesc(struct GATE_DESCRIPTOR *gd, int offset, int selector, int ar);
 
 /* int.c */
 struct KEYBUF {
-	unsigned char data[16];
-	int next;
+	unsigned char data[32];
+	int next_r, next_w, len;
 };
 void init_pic(void);
 void inthandler21(int *esp);
