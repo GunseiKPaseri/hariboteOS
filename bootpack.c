@@ -1,13 +1,14 @@
 /* bootpackのメイン */
 #include "bootpack.h"
 #include <stdio.h>
+void make_window8(unsigned char *buf, int xsize, int ysize, char *title);
 
 void HariMain(void)
 {
 	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
 	char s[40], keybuf[32], mousebuf[128];
 	int mx, my, i;
-	unsigned int memtotal;
+	unsigned int memtotal, count = 0;
 	struct MOUSE_DEC mdec;
 	/* MEMMAN_ADDRを起点とする */
 	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
@@ -49,9 +50,7 @@ void HariMain(void)
 	
 	//init_mouse_cursor8(mcursor, COL8_008484);
 	init_mouse_cursor8(buf_mouse, 99);
-	make_window8(buf_win, 160, 68, "window");
-	putfonts8_asc(buf_win, 160, 24, 28, COL8_000000, "Welcome to");
-	putfonts8_asc(buf_win, 160, 24, 44, COL8_000000, "  Haribote-OS!");
+	make_window8(buf_win, 160, 68, "counter");
 	sheet_slide(sht_back, 0, 0);
 	
 	/* 画面中央になるように座標計算 */
@@ -74,9 +73,15 @@ void HariMain(void)
 	sheet_refresh(sht_back, 0, 0, binfo->scrnx, 48);
 
 	for (;;) {
+		count++;
+		sprintf(s, "%010d", count);
+		boxfill8(buf_win, 160, COL8_C6C6C6, 40, 28, 119, 43);
+		putfonts8_asc(buf_win, 160, 40, 28, COL8_000000, s);
+		sheet_refresh(sht_win, 40, 28, 120, 44);
+		
 		io_cli();
 		if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo)  == 0) {
-			io_stihlt();
+			io_sti();
 		} else {
 			if (fifo8_status(&keyfifo) != 0) {
 				i = fifo8_get(&keyfifo);
