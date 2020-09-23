@@ -2,12 +2,14 @@
 #include "bootpack.h"
 #include <stdio.h>
 void make_window8(unsigned char *buf, int xsize, int ysize, char *title);
+void putfonts8_asc_sht(struct SHEET *sht, int x, int y, int c, int b, char *s, int l);
 
 void HariMain(void)
 {
 	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
-	struct FIFO8 timerfifo, timerfifo2, timerfifo3;
-	char s[40], keybuf[32], mousebuf[128], timerbuf[8], timerbuf2[8], timerbuf3[8];
+	struct FIFO32 fifo;
+	char s[40];
+	int fifobuf[128];
 	struct TIMER *timer, *timer2, *timer3;
 	int mx, my, i, count = 0;
 	unsigned int memtotal;
@@ -22,29 +24,25 @@ void HariMain(void)
 	init_pic();
 	io_sti(); /* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */
 
-	fifo8_init(&keyfifo, 32, keybuf);
-	fifo8_init(&mousefifo, 128, mousebuf);
+	fifo32_init(&fifo, 128, fifobuf);
 	
 	init_pit();
+	init_keyboard();
+	enable_mouse(&mdec);
 	
 	io_out8(PIC0_IMR, 0xf8); /* PIC1とPIC1とキーボードを許可(11111000) */
 	io_out8(PIC1_IMR, 0xef); /* マウスを許可(11101111) */
 
-	fifo8_init(&timerfifo, 8, timerbuf);
 	timer = timer_alloc();
-	timer_init(timer, &timerfifo, 10);
+	timer_init(timer, &fifo, 10);
 	timer_settime(timer, 1000);
-	fifo8_init(&timerfifo2, 8, timerbuf2);
 	timer2 = timer_alloc();
-	timer_init(timer2, &timerfifo, 3);
+	timer_init(timer2, &fifo, 3);
 	timer_settime(timer2, 300);
-	fifo8_init(&timerfifo3, 8, timerbuf3);
 	timer3 = timer_alloc();
-	timer_init(timer3, &timerfifo, 1);
+	timer_init(timer3, &fifo, 1);
 	timer_settime(timer3, 50);
 
-	init_keyboard();
-	enable_mouse(&mdec);
 	
 	/* メモリ領域の確認・空きを設定 */
 	memtotal = memtest(0x00400000, 0xbfffffff);
@@ -59,7 +57,7 @@ void HariMain(void)
 	sht_mouse = sheet_alloc(shtctl);
 	sht_win   = sheet_alloc(shtctl);
 	buf_back  = (unsigned char *) memman_alloc_4k(memman, binfo->scrnx * binfo->scrny);
-	buf_win   = (unsigned char *) memman_alloc_4k(memman, 160 * 68);
+	buf_win   = (unsigned char *) memman_alloc_4k(memman, 160 * 52);
 	sheet_setbuf(sht_back, buf_back, binfo->scrnx, binfo->scrny, -1); /* 透明色なし */
 	sheet_setbuf(sht_mouse, buf_mouse, 16, 16, 99);
 	sheet_setbuf(sht_win, buf_win, 160, 68, -1); /* 透明色なし */
@@ -87,24 +85,23 @@ void HariMain(void)
 	/* 使用可能なメモリ量・空き容量表示 */
 	sprintf(s, "memory %dMB   free : %dKB",
 			memtotal / (1024 * 1024), memman_total(memman) / 1024);
-	putfonts8_asc(buf_back, binfo->scrnx, 0, 32, COL8_FFFFFF, s);
-	sheet_refresh(sht_back, 0, 0, binfo->scrnx, 48);
+	putfonts8_asc_sht(sht_back, 0, 32, COL8_FFFFFF, COL8_008484, s, 40);
 
 	for (;;) {
 		count ++;
 		io_cli();
-		if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo) + fifo8_status(&timerfifo) == 0) {
+		if (fifo32_status(&fifo) == 0) {
 			io_sti();
 		} else {
-			if (fifo8_status(&keyfifo) != 0) {
-				i = fifo8_get(&keyfifo);
-				io_sti();
+			i = fifo32_get(&fifo);
+			io_sti();
+			if (256 <= i && i <= 511) {
+				/* キーボードデータ */
 				sprintf(s, "%02X", i);
 				putfonts8_asc_sht(sht_back, 0, 16, COL8_FFFFFF,COL8_008484, s, 2);
-			} else if (fifo8_status(&mousefifo) != 0) {
-				i = fifo8_get(&mousefifo);
-				io_sti();
-				if (mouse_decode(&mdec, i) != 0) {
+			} else if (512 <= i && i <= 767) {
+				/* マウスデータ */
+				if (mouse_decode(&mdec, i - 512) != 0) {
 					/* データが3バイト揃ったので表示 */
 					sprintf(s, "[lcr %4d %4d]", mdec.x, mdec.y);
 					if ((mdec.btn & 0x01) != 0) {
@@ -139,29 +136,27 @@ void HariMain(void)
 					putfonts8_asc_sht(sht_back, 0, 0, COL8_FFFFFF,COL8_008484, s, 10);
 					sheet_slide(sht_mouse, mx, my); /* カーソルに関するsheet_refresh を含む*/
 				}
-			} else if (fifo8_status(&timerfifo) != 0) {
-				i = fifo8_get(&timerfifo); /* タイムアウトしたものを把握する */
+			} else if (i == 10) {
+				/* 10秒タイマ */
+				putfonts8_asc_sht(sht_back, 0, 64, COL8_FFFFFF, COL8_008484, "10[sec]", 7);
+				sprintf(s, "%010d", count);
+				putfonts8_asc_sht(sht_win, 40, 28, COL8_000000, COL8_C6C6C6, s, 10);
+			} else if (i == 3) {
+				/* 3秒タイマ */
 				io_sti();
-				if (i == 10) {
-					putfonts8_asc_sht(sht_back, 0, 64, COL8_FFFFFF, COL8_008484, "10[sec]", 7);
-					sprintf(s, "%010d", count);
-					putfonts8_asc_sht(sht_win, 40, 28, COL8_000000, COL8_C6C6C6, s, 10);
-				} else if (i == 3) {
-					io_sti();
-					putfonts8_asc_sht(sht_back, 0, 80, COL8_FFFFFF,COL8_008484, "3[sec]", 6);
-					count = 0; /* 測定開始 */
-				} else {
-					/* 0か1 */
-					if (i != 0) {
-						timer_init(timer3, &timerfifo, 0); /* 次は0を */
-						boxfill8(buf_back, binfo->scrnx, COL8_FFFFFF, 8, 96, 15, 111);
-					} else {
-						timer_init(timer3, &timerfifo, 1); /* 次は1を */
-						boxfill8(buf_back, binfo->scrnx, COL8_008484, 8, 96, 15, 111);
-					}
-					timer_settime(timer3, 50);
-					sheet_refresh(sht_back, 8, 96, 16, 112);
-				}
+				putfonts8_asc_sht(sht_back, 0, 80, COL8_FFFFFF,COL8_008484, "3[sec]", 6);
+				count = 0; /* 測定開始 */
+			} else if (i == 1){
+				/* カーソル用タイマ */
+				timer_init(timer3, &fifo, 0); /* 次は0を */
+				boxfill8(buf_back, binfo->scrnx, COL8_FFFFFF, 8, 96, 15, 111);
+				timer_settime(timer3, 50);
+				sheet_refresh(sht_back, 8, 96, 16, 112);
+			} else if (i == 0){
+				timer_init(timer3, &fifo, 1); /* 次は1を */
+				boxfill8(buf_back, binfo->scrnx, COL8_008484, 8, 96, 15, 111);
+				timer_settime(timer3, 50);
+				sheet_refresh(sht_back, 8, 96, 16, 112);
 			}
 		}
 	}
