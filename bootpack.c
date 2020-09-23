@@ -9,7 +9,7 @@ void HariMain(void)
 	struct FIFO8 timerfifo, timerfifo2, timerfifo3;
 	char s[40], keybuf[32], mousebuf[128], timerbuf[8], timerbuf2[8], timerbuf3[8];
 	struct TIMER *timer, *timer2, *timer3;
-	int mx, my, i;
+	int mx, my, i, count = 0;
 	unsigned int memtotal;
 	struct MOUSE_DEC mdec;
 	/* MEMMAN_ADDRを起点とする */
@@ -91,9 +91,7 @@ void HariMain(void)
 	sheet_refresh(sht_back, 0, 0, binfo->scrnx, 48);
 
 	for (;;) {
-		sprintf(s, "%010d", timerctl.count);
-		putfonts8_asc_sht(sht_win, 40, 28, COL8_000000,COL8_C6C6C6, s, 10);
-		
+		count ++;
 		io_cli();
 		if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo) + fifo8_status(&timerfifo) == 0) {
 			io_sti();
@@ -142,15 +140,18 @@ void HariMain(void)
 					sheet_slide(sht_mouse, mx, my); /* カーソルに関するsheet_refresh を含む*/
 				}
 			} else if (fifo8_status(&timerfifo) != 0) {
-				i = fifo8_get(&timerfifo); /* とりあえず読み込む（からにするために） */
+				i = fifo8_get(&timerfifo); /* タイムアウトしたものを把握する */
 				io_sti();
 				if (i == 10) {
-					putfonts8_asc_sht(sht_back, 0, 64, COL8_FFFFFF,COL8_008484, "10[sec]", 7);
+					putfonts8_asc_sht(sht_back, 0, 64, COL8_FFFFFF, COL8_008484, "10[sec]", 7);
+					sprintf(s, "%010d", count);
+					putfonts8_asc_sht(sht_win, 40, 28, COL8_000000, COL8_C6C6C6, s, 10);
 				} else if (i == 3) {
-					i = fifo8_get(&timerfifo); /* とりあえず読み込む（からにするために） */
 					io_sti();
 					putfonts8_asc_sht(sht_back, 0, 80, COL8_FFFFFF,COL8_008484, "3[sec]", 6);
+					count = 0; /* 測定開始 */
 				} else {
+					/* 0か1 */
 					if (i != 0) {
 						timer_init(timer3, &timerfifo, 0); /* 次は0を */
 						boxfill8(buf_back, binfo->scrnx, COL8_FFFFFF, 8, 96, 15, 111);
