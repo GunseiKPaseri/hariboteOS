@@ -178,12 +178,13 @@ void sheet_free(struct SHEET *sht);
 /* timer.c */
 #define MAX_TIMER		500
 struct TIMER {
+	struct TIMER *next;
 	unsigned int timeout, flags;
 	struct FIFO32 *fifo;
 	unsigned char data;
 };
 struct TIMERCTL {
-	unsigned int count, next, using;
+	unsigned int count, next_timer, using;
 	struct TIMER *timers[MAX_TIMER];
 	struct TIMER timers0[MAX_TIMER];
 };
