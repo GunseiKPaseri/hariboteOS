@@ -185,7 +185,7 @@ struct TIMER {
 };
 struct TIMERCTL {
 	unsigned int count, next_timer, using;
-	struct TIMER *timers[MAX_TIMER];
+	struct TIMER *t0;
 	struct TIMER timers0[MAX_TIMER];
 };
 extern struct TIMERCTL timerctl;
