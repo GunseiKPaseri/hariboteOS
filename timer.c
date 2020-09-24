@@ -13,15 +13,21 @@ struct TIMERCTL timerctl;
 void init_pit(void)
 {
 	int i;
+	struct TIMER *t;
 	io_out8(PIT_CTRL, 0x34);
 	io_out8(PIT_CNT0, 0x9c);
 	io_out8(PIT_CNT0, 0x2e);
 	timerctl.count = 0;
-	timerctl.next_timer = 0xffffffff;/* 作動中のタイマがない */
-	timerctl.using = 0;
 	for (i = 0; i < MAX_TIMER; i++) {
 		timerctl.timers0[i].flags = 0; /* 未使用 */
 	}
+	t = timer_alloc(); /* 番兵用に一つ貰ってくる */
+	t->timeout = 0xffffffff;
+	t->flags = TIMER_FLAGS_USING;
+	t->next = 0; /* 一番うしろ */
+	timerctl.t0 = t;
+	timerctl.next_timer = 0xffffffff; /*番兵しか居ないので藩兵の時刻*/
+	timerctl.using = 1;
 	return;
 }
 
@@ -60,14 +66,6 @@ void timer_settime(struct TIMER *timer, unsigned int timeout)
 	e = io_load_eflags();
 	io_cli();
 	timerctl.using++;
-	if (timerctl.using == 1) {
-		/* 動作中のタイマがこれ1つになる場合 */
-		timerctl.t0 = timer;
-		timer->next = 0; /* 次は存在しない */
-		timerctl.next_timer = timer->timeout;
-		io_store_eflags(e);
-		return;
-	}
 	t = timerctl.t0;
 	if (timer->timeout <= t->timeout) {
 		/* 先頭に入れる場合 */
@@ -81,9 +79,6 @@ void timer_settime(struct TIMER *timer, unsigned int timeout)
 	for (;;) {
 		s = t;
 		t = t->next;
-		if (t==0) {
-			break; /* 一番うしろ */
-		}
 		if (timer->timeout <= t->timeout) {
 			/* sとtの間に入れる */
 			s->next = timer; /* sの次はtimer */
@@ -92,10 +87,6 @@ void timer_settime(struct TIMER *timer, unsigned int timeout)
 			return;
 		}
 	}
-	/* 一番最後に入れる場合 */
-	s->next = timer;
-	timer->next = 0;
-	io_store_eflags(e);
 	return;
 }
 
@@ -119,13 +110,10 @@ void inthandler20(int *esp)
 		fifo32_put(timer->fifo, timer->data);
 		timer = timer->next; /* 次のタイマの番地をtimerに代入 */
 	}
+	timerctl.using -=i;
 	/* リスト構造を利用したずらし */
 	timerctl.t0 = timer;
 	/* timerctl.next_timerの設定 */
-	if (timerctl.using > 0) {
-		timerctl.next_timer = timerctl.t0->timeout;
-	} else {
-		timerctl.next_timer = 0xffffffff;
-	}
+	timerctl.next_timer = timerctl.t0->timeout;
 	return;
 }
